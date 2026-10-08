@@ -41,8 +41,19 @@ public extension StytchB2BClient.Passwords {
                 try? pkcePairManager.clearPKCECodePair()
             }
 
+            // PragmaCharge patch: a reset the SERVER started (an invitation, an admin's reset) carries no
+            // PKCE challenge, so this device holds no verifier and there is nothing to prove. Send it
+            // without one, as stytch-android does, instead of refusing before the request is made.
+            // A reset started in the app still has its challenge enforced by Stytch on the server.
             guard let pkcePair: PKCECodePair = pkcePairManager.getPKCECodePair() else {
-                throw StytchSDKError.missingPKCE
+                return try await router.post(
+                    to: .resetByEmail,
+                    parameters: IntermediateSessionTokenParameters(
+                        intermediateSessionToken: sessionManager.intermediateSessionToken,
+                        wrapped: parameters
+                    ),
+                    useDFPPA: true
+                )
             }
 
             let intermediateSessionTokenParameters = IntermediateSessionTokenParameters(
